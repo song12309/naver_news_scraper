@@ -52,7 +52,6 @@ def get_google_news(keyword):
     feed = feedparser.parse(url)
     if not feed.entries: return None
     
-    # 가장 최신 기사 1개만 리턴 (테스트용)
     entry = feed.entries[0]
     return {
         'title': entry.title,
@@ -61,10 +60,8 @@ def get_google_news(keyword):
     }
 
 def clean_text(text):
-    """후처리: 불필요한 기호 제거 (레퍼런스 반영)"""
-    # [1], [2] 같은 참조 번호 제거
+    """후처리: 불필요한 기호 제거"""
     text = re.sub(r'\[\d+\]', '', text)
-    # 너무 많은 줄바꿈 제거
     text = re.sub(r'\n{3,}', '\n\n', text)
     return text.strip()
 
@@ -102,9 +99,7 @@ def generate_content_variants(article):
                 temperature=0.7,
                 messages=[{"role": "user", "content": full_prompt}]
             )
-            # 후처리 적용
-            cleaned_content = clean_text(message.content[0].text)
-            results[style_name] = cleaned_content
+            results[style_name] = clean_text(message.content[0].text)
             
         except Exception as e:
             results[style_name] = f"생성 실패: {e}"
@@ -133,7 +128,6 @@ def generate_html_email(contents):
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
         """
         
-        # 3가지 스타일 카드
         styles = [
             ("📊 분석가 (Insight)", content['variants'].get('Insight', ''), "#e8f4fd", "#0366d6"),
             ("☕ 창업가 (Story)", content['variants'].get('Storytelling', ''), "#f0fff4", "#2da44e"),
@@ -178,27 +172,22 @@ def send_email(subject, html_body):
 def main():
     print("🏭 콘텐츠 공장 가동 시작...")
     
-    # 1. 키워드별 뉴스 수집 (테스트를 위해 키워드 2개만 실행)
     contents = []
     
-    # API 호출 비용 절약을 위해 첫 2개 키워드만 테스트
     for keyword in KEYWORDS[:2]: 
         print(f"🔍 검색 및 생성 중: {keyword}")
         article = get_google_news(keyword)
         
         if article:
-            # 2. 3가지 버전으로 글 생성
             variants = generate_content_variants(article)
             article['variants'] = variants
             contents.append(article)
     
     if contents:
-        # 3. 이메일 발송
         html_body = generate_html_email(contents)
         today = datetime.datetime.now().strftime('%Y-%m-%d')
         send_email(f"[{today}] 콘텐츠 공장 생산 완료 (3가지 버전)", html_body)
         
-        # 4. GitHub 저장 (옵션 - 원본 기사만 저장)
         os.system('git config --global user.name "MarketBot"')
         os.system('git config --global user.email "bot@github.com"')
         os.system(f'git add {ARCHIVE_FILE}')
@@ -208,8 +197,3 @@ def main():
 if __name__ == "__main__":
     main()
 EOF
-
-# GitHub에 업로드
-git add market_watcher.py
-git commit -m "Feature: 3가지 페르소나 적용 및 후처리 로직 추가"
-git push
