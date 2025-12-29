@@ -2,23 +2,35 @@ name: Market Watcher Daily
 
 on:
   schedule:
-    - cron: '0 22 * * *' # 한국 아침 7시
+    - cron: '0 22 * * *' # 한국 시간 오전 7시
   workflow_dispatch:
+
+permissions:
+  contents: write  # 중요: 봇이 파일 수정 권한을 가짐
 
 jobs:
   run-market-watcher:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+    
     - uses: actions/setup-python@v4
       with:
         python-version: '3.9'
+        
     - name: Install dependencies
       run: pip install -r requirements.txt
+      
     - name: Run Market Watcher
       env:
         EMAIL_USER: ${{ secrets.EMAIL_USER }}
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-        NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-        NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
       run: python market_watcher.py
+      
+    - name: Commit and Push changes
+      run: |
+        git config --global user.name "MarketBot"
+        git config --global user.email "bot@github.com"
+        git add NEWS_ARCHIVE.md
+        git commit -m "Update: 뉴스 아카이브 업데이트" || exit 0
+        git push

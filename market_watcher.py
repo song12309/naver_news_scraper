@@ -1,30 +1,34 @@
 import feedparser
-import requests
-import json
 import datetime
 import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import urllib.parse
 
-# --- 설정값 ---
+# --- 키워드 설정 ---
 KEYWORDS = [
-    "한국 F&B 트렌드", "성수동 팝업", "서울 미슐랭 가이드", # F&B
-    "국내 유니콘 기업", "스타트업 투자 유치", # 스타트업
-    "Private Equity Korea", "MBK 파트너스", "한앤컴퍼니", "IMM PE", "M&A 공시" # PE/Deal
+    "성수동 팝업스토어",
+    "서울 F&B 트렌드",
+    "푸드테크 투자",
+    "국내 유니콘 스타트업",
+    "스타트업 시리즈 투자",
+    "Private Equity Korea",
+    "MBK 파트너스",
+    "IMM PE",
+    "기업 경영권 인수"
 ]
 
-NOTION_TOKEN = os.environ.get("NOTION_TOKEN")
-NOTION_DB_ID = os.environ.get("NOTION_DATABASE_ID")
+ARCHIVE_FILE = "NEWS_ARCHIVE.md"
 
 def get_google_news(keyword):
     """구글 뉴스 RSS 검색"""
-    encoded_keyword = keyword.replace(" ", "+")
-    url = f"https://news.google.com/rss/search?q={encoded_keyword}&hl=ko&gl=KR&ceid=KR:ko"
+    encoded_keyword = urllib.parse.quote(keyword)
+    url = f"https://news.google.com/rss/search?q={encoded_keyword}+when:1d&hl=ko&gl=KR&ceid=KR:ko"
     feed = feedparser.parse(url)
     
     articles = []
-    for entry in feed.entries[:3]: # 키워드당 3개만
+    for entry in feed.entries[:2]:
         articles.append({
             'title': entry.title,
             'link': entry.link,
@@ -33,51 +37,50 @@ def get_google_news(keyword):
         })
     return articles
 
-def save_to_notion(article):
-    """노션 데이터베이스에 기사 저장"""
-    if not NOTION_TOKEN or not NOTION_DB_ID:
-        return
-
-    headers = {
-        "Authorization": f"Bearer {NOTION_TOKEN}",
-        "Content-Type": "application/json",
-        "Notion-Version": "2022-06-28"
-    }
+def update_markdown_archive(articles):
+    """뉴스 내용을 마크다운 파일 최상단에 추가"""
+    today = datetime.datetime.now().strftime('%Y년 %m월 %d일')
     
-    # 노션 DB 컬럼 매칭 (Title, Keyword, Link, Date)
-    data = {
-        "parent": {"database_id": NOTION_DB_ID},
-        "properties": {
-            "Title": {"title": [{"text": {"content": article['title']}}]},
-            "Keyword": {"select": {"name": article['keyword']}},
-            "Link": {"url": article['link']},
-            "Date": {"date": {"start": datetime.datetime.now().isoformat().split('T')[0]}}
-        }
-    }
+    # 1. 오늘 뉴스 내용 생성
+    new_content = f"## 📅 {today}\n\n"
     
-    try:
-        requests.post("https://api.notion.com/v1/pages", headers=headers, json=data)
-    except Exception as e:
-        print(f"노션 저장 실패: {e}")
-
-def generate_linkedin_draft(articles):
-    draft = "🚀 [Today's Market Insight] F&B, Unicorn & PE Deals\n\n"
+    grouped = {}
     for art in articles:
-        draft += f"✅ {art['title']}\n🔗 {art['link']}\n\n"
-    draft += "#MarketWatch #Investment #KoreaBusiness"
-    return draft
+        k = art['keyword']
+        if k not in grouped: grouped[k] = []
+        grouped[k].append(art)
+        
+    for k, items in grouped.items():
+        new_content += f"### {k}\n"
+        for item in items:
+            new_content += f"- [{item['title']}]({item['link']})\n"
+        new_content += "\n"
+    
+    new_content += "---\n\n"
+
+    # 2. 기존 파일 읽기 (없으면 생성)
+    if os.path.exists(ARCHIVE_FILE):
+        with open(ARCHIVE_FILE, 'r', encoding='utf-8') as f:
+            old_content = f.read()
+    else:
+        old_content = "# 📰 Market Watcher 아카이브\n\n"
+
+    # 3. 새 내용 + 옛날 내용 합치기 (최신순 정렬)
+    with open(ARCHIVE_FILE, 'w', encoding='utf-8') as f:
+        f.write(old_content.replace("# 📰 Market Watcher 아카이브\n\n", "# 📰 Market Watcher 아카이브\n\n" + new_content))
+    
+    return new_content # 이메일 본문으로도 사용
 
 def send_email(subject, body):
     gmail_user = os.environ.get("EMAIL_USER")
     gmail_password = os.environ.get("EMAIL_PASSWORD")
     
-    if not gmail_user or not gmail_password:
-        return
+    if not gmail_user: return
 
     msg = MIMEMultipart()
     msg['Subject'] = subject
     msg['From'] = gmail_user
-    msg['To'] = gmail_user # 나에게 보내기
+    msg['To'] = gmail_user
     msg.attach(MIMEText(body, 'plain', 'utf-8'))
 
     try:
@@ -95,18 +98,19 @@ def main():
     all_articles = []
     
     for keyword in KEYWORDS:
-        print(f"수집 중: {keyword}")
         news_items = get_google_news(keyword)
-        for item in news_items:
-            all_articles.append(item)
-            save_to_notion(item) # 노션에 하나씩 저장
+        all_articles.extend(news_items)
             
-    print(f"총 {len(all_articles)}개 수집 및 노션 저장 완료.")
-    
     if all_articles:
-        draft = generate_linkedin_draft(all_articles)
+        # 파일 저장
+        markdown_body = update_markdown_archive(all_articles)
+        print("✅ 아카이브 파일 업데이트 완료")
+        
+        # 이메일 전송
         today = datetime.datetime.now().strftime('%Y-%m-%d')
-        send_email(f"[{today}] 마켓 워처 리포트", draft)
+        send_email(f"[{today}] 마켓 워처 리포트", markdown_body)
+    else:
+        print("수집된 뉴스가 없습니다.")
 
 if __name__ == "__main__":
     main()
