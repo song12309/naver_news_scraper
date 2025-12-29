@@ -1,4 +1,3 @@
-cat << 'EOF' > market_watcher.py
 import feedparser
 import datetime
 import os
@@ -95,7 +94,7 @@ def generate_content_variants(article):
             
             message = client.messages.create(
                 model="claude-3-5-sonnet-latest",
-                max_tokens=500,
+                max_tokens=1000,
                 temperature=0.7,
                 messages=[{"role": "user", "content": full_prompt}]
             )
@@ -188,12 +187,15 @@ def main():
         today = datetime.datetime.now().strftime('%Y-%m-%d')
         send_email(f"[{today}] 콘텐츠 공장 생산 완료 (3가지 버전)", html_body)
         
-        os.system('git config --global user.name "MarketBot"')
-        os.system('git config --global user.email "bot@github.com"')
-        os.system(f'git add {ARCHIVE_FILE}')
-        os.system('git commit -m "Update: Content Factory Output" || echo "No changes"')
-        os.system('git push')
+        # GitHub 자동 저장
+        try:
+            os.system('git config --global user.name "MarketBot"')
+            os.system('git config --global user.email "bot@github.com"')
+            os.system(f'git add {ARCHIVE_FILE}')
+            os.system('git commit -m "Update: Content Factory Output" || echo "No changes"')
+            os.system('git push')
+        except:
+            pass
 
 if __name__ == "__main__":
     main()
-EOF
