@@ -1,29 +1,24 @@
-name: Daily News Scraper
+name: Market Watcher Daily
 
 on:
   schedule:
-    - cron: '0 22 * * *'  # 한국 시간 오전 7시 (UTC 22시)
-  workflow_dispatch:      # 수동 실행 버튼
+    - cron: '0 22 * * *' # 한국 아침 7시
+  workflow_dispatch:
 
 jobs:
-  scrape-and-email:
+  run-market-watcher:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Check out code
-      uses: actions/checkout@v3
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
       with:
         python-version: '3.9'
-
     - name: Install dependencies
-      run: |
-        pip install requests beautifulsoup4
-
-    - name: Run Scraper
+      run: pip install -r requirements.txt
+    - name: Run Market Watcher
       env:
         EMAIL_USER: ${{ secrets.EMAIL_USER }}
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-      run: python naver_news_scraper_auto.py
+        NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+      run: python market_watcher.py
