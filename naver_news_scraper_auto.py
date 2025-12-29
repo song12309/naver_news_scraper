@@ -420,59 +420,35 @@ class NaverNewsScraper:
 
         return html
 
-
-def load_email_config(config_file='email_config.json'):
-    """
-    이메일 설정 파일을 불러옵니다.
-    """
-    if not os.path.exists(config_file):
-        print(f"✗ 설정 파일을 찾을 수 없습니다: {config_file}")
-        print(f"email_config.json 파일을 생성하고 이메일 정보를 입력해주세요.")
-        sys.exit(1)
-
-    try:
-        with open(config_file, 'r', encoding='utf-8') as f:
-            config = json.load(f)
-
-        # 필수 필드 확인
-        required_fields = ['gmail_user', 'gmail_password', 'recipient_email']
-        for field in required_fields:
-            if field not in config or not config[field] or 'your-' in config[field]:
-                print(f"✗ {field} 설정이 필요합니다.")
-                print(f"email_config.json 파일을 편집하여 실제 정보를 입력해주세요.")
-                sys.exit(1)
-
-        return config
-
-    except Exception as e:
-        print(f"✗ 설정 파일 로드 실패: {e}")
-        sys.exit(1)
-
-
 def main():
     print("=" * 50)
-    print("네이버 뉴스 스크래퍼 (자동 실행)")
+    print("네이버 뉴스 스크래퍼 (GitHub Actions 버전)")
     print("=" * 50)
 
-    # 설정 파일 로드
-    config = load_email_config()
+    # 1. 환경변수에서 비밀번호 가져오기 (GitHub Secrets와 연결됨)
+    gmail_user = os.environ.get("EMAIL_USER")
+    gmail_password = os.environ.get("EMAIL_PASSWORD")
+    
+    # 받는 사람은 보내는 사람과 같게 설정 (필요하면 변경 가능)
+    recipient_email = gmail_user 
+
+    # 비밀번호가 잘 들어왔는지 확인 (보안상 앞 3글자만 출력하거나 체크만 함)
+    if not gmail_user or not gmail_password:
+        print("❌ 오류: 이메일 환경변수(EMAIL_USER, EMAIL_PASSWORD)가 없습니다.")
+        print("로컬에서 실행 중이라면 환경변수를 설정하거나, GitHub Actions 설정을 확인하세요.")
+        return
+    else:
+        print(f"✅ 이메일 설정 확인됨: {gmail_user}")
 
     # 검색할 키워드 리스트
     keywords = [
-        '야놀자',
-        '여기어때',
-        '아고다',
-        '익스피디아',
-        '에어비앤비',
-        '호텔스닷컴',
-        '트립닷컴',
-        '스테이폴리오',
-        '마이리얼트립'
+        '야놀자', '여기어때', '아고다', '익스피디아', 
+        '에어비앤비', '호텔스닷컴', '트립닷컴', 
+        '스테이폴리오', '마이리얼트립'
     ]
 
     print("\n" + "=" * 50)
     print(f"검색 키워드: {', '.join(keywords)}")
-    print(f"각 키워드당 수집 개수: 5개")
     print("=" * 50)
 
     scraper = NaverNewsScraper()
@@ -484,26 +460,27 @@ def main():
     print(f"총 {len(articles)}개의 기사를 수집했습니다.")
     print("=" * 50)
 
-    # 결과 출력
+    # 결과 출력 (로그용)
     for article in articles:
-        print(f"\n[{article['keyword']}] {article['title']}")
-        print(f"  언론사: {article['press']}")
-        print(f"  발행일: {article['date']}")
-        print(f"  링크: {article['link']}")
+        print(f"[{article['keyword']}] {article['title']}")
 
-    # 파일로 저장
+    # 파일로 저장 (GitHub 서버에는 남지만, 바로 사라집니다. 기록용)
     scraper.save_to_csv(articles)
     scraper.save_to_json(articles)
 
     # 이메일 전송
     if articles:
         print("\n" + "=" * 50)
-        scraper.send_email(
+        success = scraper.send_email(
             articles,
-            config['gmail_user'],
-            config['gmail_password'],
-            config['recipient_email']
+            gmail_user,
+            gmail_password,
+            recipient_email
         )
+        if success:
+            print("✅ 메일 발송 성공")
+        else:
+            print("❌ 메일 발송 실패")
         print("=" * 50)
 
     # 히스토리 저장

@@ -1,0 +1,29 @@
+name: Daily News Scraper
+
+on:
+  schedule:
+    - cron: '0 22 * * *'  # 한국 시간 오전 7시 (UTC 22시)
+  workflow_dispatch:      # 수동 실행 버튼
+
+jobs:
+  scrape-and-email:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        pip install requests beautifulsoup4
+
+    - name: Run Scraper
+      env:
+        EMAIL_USER: ${{ secrets.EMAIL_USER }}
+        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+      run: python naver_news_scraper_auto.py

@@ -1,0 +1,30 @@
+# 이메일 설정 파일 (비밀번호 포함)
+email_config.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# 뉴스 히스토리 및 결과 파일
+news_history.json
+naver_news_results.csv
+naver_news_results.json
+
+# 가상 환경
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
