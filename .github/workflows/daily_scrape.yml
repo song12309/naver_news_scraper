@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write  # 중요: 봇이 파일 수정 권한을 가짐
+  contents: write
 
 jobs:
   run-market-watcher:
@@ -25,6 +25,9 @@ jobs:
       env:
         EMAIL_USER: ${{ secrets.EMAIL_USER }}
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        # ▲ 이 줄이 빠져 있어서 그동안 글이 안 나왔던 겁니다!
+        
       run: python market_watcher.py
       
     - name: Commit and Push changes
