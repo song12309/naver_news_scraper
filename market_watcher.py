@@ -93,7 +93,7 @@ def generate_content_variants(article):
             full_prompt = base_prompt.format(style_guide=guide)
             
             message = client.messages.create(
-                model="claude-3-5-sonnet-latest",
+                model="claude-3-5-sonnet-20240620", # 여기가 수정되었습니다! (정확한 ID)
                 max_tokens=1000,
                 temperature=0.7,
                 messages=[{"role": "user", "content": full_prompt}]
